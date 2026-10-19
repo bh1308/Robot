@@ -1,0 +1,19 @@
+#include "YEEP144.h"
+#include "YEEP144_BluetoothUART.h"
+#include "YEEP144_DebugUART.h"
+uint8_t RxData[32] = {0};
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+    HAL_UART_Receive_DMA(huart, RxData, Size);
+}
+int main(void){
+	YEEP144_Init();
+    YEEP144_DebugUART_Init();
+    YEEP144_BluetoothUART_Init();
+    //HAL_UART_Receive_DMA(&huart2, RxData, 32);
+
+    while(1) {   
+        YEEP144_DebugUART_printf("RxData: %s\r\n", RxData);
+		YEEP144_BluetoothUART_printf("Hello, Wireless!\r\n");
+		HAL_Delay(1000);
+	}
+}
