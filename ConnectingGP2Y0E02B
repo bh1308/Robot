@@ -1,0 +1,22 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+
+
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	//Your program initialization code goes here
+    YEEP144_I2C_Init();
+    YEEP144_I2C_MuxSelect(0);
+    
+    float distance_IR0 = YEEP144_GP2Y0E02B_Read();
+
+	while(1) {
+		//Your program loop code goes here
+        YEEP144_DebugUART_printf("IR0(int): %d\r\n", (int)distance_IR0);
+        YEEP144_DebugUART_printf("IR0(float): %f\r\n", distance_IR0);
+
+		HAL_Delay(1000);
+	}
+}
