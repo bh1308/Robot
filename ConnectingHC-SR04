@@ -1,0 +1,21 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_HCSR04.h"
+
+
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	//Your program initialization code goes here
+	YEEP144_Ultrasonic1_Init();    
+    
+
+	while(1) {
+		//Your program loop code goes here
+		YEEP144_Ultrasonic1_Ping();
+		YEEP144_DebugUART_printf("%d\r\n", (int)ultrasonicTickLen[0]);
+
+		HAL_Delay(1000);
+	}
+}
