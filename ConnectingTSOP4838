@@ -1,0 +1,20 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_TSOP4838.h"
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_TSOP4838_Init();
+	//Your program initialization code goes here
+	
+	while(1) {
+		//Your program loop code goes here
+		if(YEEP144_TSOP4838_Received()){
+                uint32_t code = YEEP144_TSOP4838_Read();
+                YEEP144_DebugUART_printf("IR received: %02X\r\n", code);
+            }
+
+		HAL_Delay(1000);
+	}
+}
