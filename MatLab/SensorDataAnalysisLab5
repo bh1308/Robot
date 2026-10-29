@@ -1,0 +1,18 @@
+
+folder = 'H:\Desktop\Robotics Design and Construction\CSV';
+
+[file, path] = uigetfile(fullfile(folder,'*.csv'), 'Select Sensor CSV file');
+
+fullPath = fullfile(path, file);
+sensors = readmatrix(fullPath);
+
+figure(1)
+plot(sensors)
+
+figure(2)
+plot(sensors(:,1),sensors(:,2),sensors(:,1),sensors(:,3))
+
+title("Sensor Calibration")
+xlabel("Time (s)")
+ylabel("Distance Measurement (cm)")
+legend({"IR0","US1"})
