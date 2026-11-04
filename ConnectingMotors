@@ -1,0 +1,29 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init();
+
+	//Your program initialization code goes here
+	YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0); // Left motor
+	YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0); // Right motor
+	YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+	YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+
+	uint16_t test_speed = 1024; // Low safe speed (~25%)
+    YEEP144_DCMotor_SetSpeed(DCMOTOR1, test_speed);
+    YEEP144_DCMotor_SetSpeed(DCMOTOR2, test_speed);
+
+    // Differential forward drive (Opposite directions for physical orientation)
+    YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW); 
+    YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+
+		HAL_Delay(1000);
+
+while(1) {
+		//Your program loop code goes here
+	}
+}
