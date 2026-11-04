@@ -23,6 +23,13 @@ int main(void){
     YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW); 
     YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
 
+		HAL_Delay(10000);
+
+	YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0); // Left motor
+	YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0); // Right motor
+	YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+	YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+
 while(1) {
 		//Your program loop code goes here
 	}
