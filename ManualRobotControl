@@ -1,0 +1,53 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init();
+	uint8_t RxData[32] = {0};
+	uint16_t RxLen = 0;
+	
+while(1) {
+		uint8_t err = HAL_UARTEx_ReceiveToIdle(&huart3, RxData, 32, &RxLen, 1000);
+	(void)err; // Explicitly silences the unused variable warning
+	// 
+	//Your program loop code goes here
+		switch(RxData[0]) {
+	case ' ': //stop with space
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+break;
+	case 'w': //forward with 'w'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+break;
+	case 's': //backward with 's'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+break;
+	case 'a': //turn left with 'a'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+break;
+	case 'd': //turn right with 'd'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1023);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+break;
+default:
+break;
+	}
+}
+
+}
