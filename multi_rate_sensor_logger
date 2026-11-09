@@ -1,0 +1,41 @@
+#include "YEEP144.h"
+#include "YEEP144_GP2Y0E02B.h"
+#include "YEEP144_I2C.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_HCSR04.h"
+#include "YEEP144_HCSR04.h"
+//…
+#ifndef ASCII_ESC
+#define ASCII_ESC 27
+#endif
+
+uint32_t time_start_ms = 0; //Get the initial start time
+int main(void) {
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	//Your program initialization code goes here
+    YEEP144_I2C_Init();
+    YEEP144_I2C_MuxSelect(0);
+	time_start_ms = HAL_GetTick();
+	YEEP144_Ultrasonic1_Init();    
+
+	//…
+	// Main loop
+	while(1) {
+		// High-rate statements
+		float distance_IR0 = YEEP144_GP2Y0E02B_Read();
+		YEEP144_Ultrasonic1_Ping();
+		float USdistance_cm = ultrasonicTickLen[0] / 58.0f;
+		//…
+		uint32_t time_current_ms = HAL_GetTick(); // Check the current time
+		// Find the elapsed time since the last iteration
+		uint32_t time_elapsed_ms = (time_current_ms - time_start_ms);
+		if(time_elapsed_ms > 1000) { // If more than one second has elapsed
+			time_start_ms = HAL_GetTick(); // Reset start time
+			// Low-rate statements, printing, communications, etc.
+			YEEP144_DebugUART_printf("Time:%lu ms | US1:%.2f cm | IR0:%.2f cm%c[K\r\n", time_current_ms, USdistance_cm, distance_IR0, ASCII_ESC);
+			//…
+}
+HAL_Delay(10); // It is advisable to keep a small delay in the high rate loop for multithreading, etc. 
+}
+}
