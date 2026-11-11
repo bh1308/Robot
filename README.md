@@ -2,12 +2,13 @@
 # Project Overview
 This repository contains the complete CAD designs, STM32 HAL source code, and presentation materials for an autonomous differential-drive mobile robot developed for the ELE00098H module at the University of York. Built around the York Engineering Embedded Platform (YEEP-144) featuring an STM32H563ZI microcontroller, the robot is designed to map unknown maze environments, navigate around obstacles, track encoder odometry, and locate infrared-emitting beacons to interact with them in numerical sequence.
 # Key Technical Specifications
-Main Controller: York Engineering Embedded Platform (YEEP-144) featuring an STM32H563ZI MU
-Drive System: Pololu TB6612FNG dual motor driver
-Actuation & Encoders: Dual micro-metal gearmotors equipped with quadrature encoders for wheel position tracking
-Distance Sensing: HC-SR04 ultrasonic range sensors and Sharp GP2Y0E02B IR distance sensors (I2C/Analog)
-Signal Receiver: TSOP4838 38kHz IR receiver module for parsing beacon identification signals
-Mechanical Structure: Custom 2D laser-cut chassis, 3D-printed mounting brackets, custom wheels, and caster wheel
+- Main Controller: York Engineering Embedded Platform (YEEP-144) featuring an STM32H563ZI MU
+- Drive System: Pololu TB6612FNG dual motor driver
+- Actuation & Encoders: Dual micro-metal gearmotors equipped with quadrature encoders for wheel position tracking
+- Distance Sensing: HC-SR04 ultrasonic range sensors and Sharp GP2Y0E02B IR distance sensors (I2C/Analog)
+- Signal Receiver: TSOP4838 38kHz IR receiver module for parsing beacon identification signals
+- Mechanical Structure: Custom 2D laser-cut chassis, 3D-printed mounting brackets, custom wheels, and caster wheel
+ 
 # Project Implementation Phases
 
 Phase 1: Custom Chassis Construction
