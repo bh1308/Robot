@@ -1,0 +1,59 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+#include "YEEP144_HCSR04.h"
+#include "YEEP144_PushButton.h"
+
+volatile uint8_t startButton = 0;
+void YEEP144_PushButton_GreenCallback(void)
+{
+    startButton = 1;
+}	
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init();
+	YEEP144_Ultrasonic1_Init();  
+	YEEP144_PushButton_GreenInit();
+	YEEP144_DebugUART_printf("Press the green button to start the motors\r\n");
+
+while(1) {
+if (startButton == 0)
+    {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+        YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		continue;
+	}
+
+	else if (startButton == 1){
+
+	YEEP144_Ultrasonic1_Ping();
+	float USdistance_cm = ultrasonicTickLen[0] / 58.0f;
+		HAL_Delay(50);
+		YEEP144_DebugUART_printf("%f\r\n", USdistance_cm);
+	
+if (USdistance_cm > 8) { // continue at normal speed
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+	}
+else if (USdistance_cm > 5 && USdistance_cm <= 8) { // slow down the motors
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1024);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1024);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+		YEEP144_DebugUART_printf("Aproaching Obstacle! Slowing down motors");
+}
+else if (USdistance_cm > 0 && USdistance_cm <= 5) {         // stop the motors
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+		YEEP144_DebugUART_printf("Obstacle detected! Stopping motors");
+}
+
+}
+}
+}
