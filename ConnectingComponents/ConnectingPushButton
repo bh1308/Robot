@@ -1,0 +1,35 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+#include "YEEP144_PushButton.h"
+
+volatile uint8_t startButton = 0;
+void YEEP144_PushButton_GreenCallback(void)
+{
+    startButton = 1;
+}	
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init(); 
+	YEEP144_PushButton_GreenInit();
+	YEEP144_DebugUART_printf("Press the green button to start the motors\r\n");
+
+while(1) {
+if (startButton == 0)
+    {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+        YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		continue;
+	}
+
+	else if (startButton == 1){
+
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+}
+}
+}
