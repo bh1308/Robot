@@ -1,6 +1,6 @@
 # Robot
 # Project Overview
-This repository contains the complete CAD designs, STM32 HAL source code, and presentation materials for an autonomous differential-drive mobile robot developed for the ELE00098H module at the University of York. Built around the York Engineering Embedded Platform (YEEP-144) featuring an STM32H563ZI microcontroller, the robot is designed to map unknown maze environments, navigate around obstacles, track encoder odometry, and locate infrared-emitting beacons to interact with them in numerical sequence.
+An autonomous differential-drive mobile robot developed for the ELE00098H module at the University of York. Built around the York Engineering Embedded Platform (YEEP-144) featuring an STM32H563ZI microcontroller, the robot is designed to map unknown maze environments, navigate around obstacles, track encoder odometry, and locate infrared-emitting beacons to interact with them in numerical sequence.
 # Key Technical Specifications
 - Main Controller: York Engineering Embedded Platform (YEEP-144) featuring an STM32H563ZI MU
 - Drive System: Pololu TB6612FNG dual motor driver
