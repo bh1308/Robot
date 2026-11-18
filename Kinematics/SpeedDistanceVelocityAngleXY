@@ -1,0 +1,110 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+
+
+uint32_t time_start_ms = 0; //Get the initial start time
+float CountsPerCM = 3576.0f / (4.80f * 3.14159f); //Counts per cm of movement. 3576 counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init(); 
+	YEEP144_Encoder1_Init(); // Left wheel encoder
+	YEEP144_Encoder2_Init(); // Right wheel encoder
+	time_start_ms = HAL_GetTick();
+	int16_t curr_countsLeft = 0;
+	int16_t prev_countsLeft = 0;
+	int16_t curr_countsRight = 0;
+	int16_t prev_countsRight = 0;
+	int64_t count[2] = {0};
+
+	uint8_t RxData[32] = {0};
+	uint16_t RxLen = 0;
+
+while(1) {
+		uint8_t err = HAL_UARTEx_ReceiveToIdle(&huart3, RxData, 32, &RxLen, 1);
+	(void)err; // Explicitly silences the unused variable warning
+	// 
+	//Your program loop code goes here
+		switch(RxData[0]) {
+	case ' ': //stop with space
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+break;
+	case 'w': //forward with 'w'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+break;
+	case 's': //backward with 's'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+break;
+	case 'a': //turn left with 'a'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+break;
+	case 'd': //turn right with 'd'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1023);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+break;
+		}
+		
+		uint16_t enc1 = YEEP144_Encoder1_Get();
+		uint16_t enc2 = YEEP144_Encoder2_Get();
+		uint32_t time_current_ms = HAL_GetTick(); // Check the current time
+		uint32_t time_elapsed_ms = (time_current_ms - time_start_ms);
+		if(time_elapsed_ms > 1000) { // If more than one second has elapsed
+			time_start_ms = HAL_GetTick(); // Reset start time
+			
+			prev_countsLeft = curr_countsLeft;
+			curr_countsLeft = YEEP144_Encoder1_Get();
+			int16_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
+			count[0] += (int64_t)delta1; // Left
+			
+			prev_countsRight = curr_countsRight;
+			curr_countsRight = YEEP144_Encoder2_Get();
+			int16_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
+			int16_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
+			count[1] += (int64_t)deltaRight; // Right
+			
+			// 1 cm is (298*12)/(pi*d). this is 3576/OneRevDistance. So to get cm, divide counts by counts per centimeter
+			float distanceLeft = (float)count[0] / CountsPerCM;
+			float distanceRight = (float)count[1] / CountsPerCM;
+			
+			float elapsedSeconds = time_elapsed_ms / 1000.0f; // Convert milliseconds to seconds
+			float speedLeft = (delta1 / elapsedSeconds); // cm/s Speed=distance/time
+			float speedRight = (deltaRight / elapsedSeconds); // cm/s
+			YEEP144_DebugUART_printf("Encoder 1: %d\tEncoder 2: %d\r\n", enc1, enc2);
+			YEEP144_DebugUART_printf("Encoder 1 Counts: %lld\t Encoder 2 Counts: %lld\r\n", count[0], count[1]);
+			YEEP144_DebugUART_printf("Distance Left: %.2f cm\tDistance Right: %.2f cm\r\n", distanceLeft, distanceRight);
+			YEEP144_DebugUART_printf("Speed Left: %.2f cm/s\tSpeed Right: %.2f cm/s\r\n", speedLeft, speedRight); // Per interval speed
+
+			float AngularVelocityRobot = (speedRight - speedLeft) / 13.0f; // Angular velocity of the robot in rad/s. 13cm is the distance between the wheels
+			float linearVelocityRobot = (speedRight + speedLeft) / 2.0f; // Linear velocity of the robot in cm/s
+			float TurningRadius = (6.5f * (linearVelocityRobot)) / (AngularVelocityRobot); // Turning radius of the robot arounf the Instantaneous Centre of Curvature in cm
+			YEEP144_DebugUART_printf("Linear Velocity: %.2f cm/s\r\n", linearVelocityRobot);
+			YEEP144_DebugUART_printf("Angular Velocity: %.2f rad/s\r\n", AngularVelocityRobot);
+			YEEP144_DebugUART_printf("Turning Radius: %.2f cm\r\n", TurningRadius);
+
+			float IncrementalRotationAngle = (distanceRight - distanceLeft) / 13.0f;
+			float IncrementalDistance = (distanceRight + distanceLeft) / 2.0f;
+			YEEP144_DebugUART_printf("Incremental Rotation Angle: %.2f rad\r\n", IncrementalRotationAngle);
+			YEEP144_DebugUART_printf("Incremental Distance: %.2f cm\r\n", IncrementalDistance);
+		
+			ChangeInX = IncrementalDistance * cos(IncrementalRotationAngle);
+			ChangeInY = IncrementalDistance * sin(IncrementalRotationAngle);
+			YEEP144_DebugUART_printf("Change in X: %.2f cm\tChange in Y: %.2f cm\r\n", ChangeInX, ChangeInY);
+		}
+}
+}
