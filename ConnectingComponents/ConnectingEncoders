@@ -4,7 +4,7 @@
 
 
 uint32_t time_start_ms = 0; //Get the initial start time
-float WheelMovement = 3576.0f / (4.80f * 3.14159f); //Counts per cm of movement. 3576 counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+float CountsPerCM = 3576.0f / (4.80f * 3.14159f); //Counts per cm of movement. 3576 counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
 
 int main(void){
 	YEEP144_Init();
@@ -70,20 +70,26 @@ break;
 			prev_countsLeft = curr_countsLeft;
 			curr_countsLeft = YEEP144_Encoder1_Get();
 			int16_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
+			count[0] += (int64_t)delta1; // Left
+			
 			prev_countsRight = curr_countsRight;
 			curr_countsRight = YEEP144_Encoder2_Get();
 			int16_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
-			count[0] += (int64_t)delta1; // Left
-			count[1] += (int64_t)delta2; // Right
+			int16_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
+			count[1] += (int64_t)deltaRight; // Right
 			
-			// 1 cm is (298*12)/(pi*d). this is 3576/OneRevDistance. So to get cm, multiply counts by 3576/OneRevDistance
-			float distanceLeft = (float)count[0] * WheelMovement;
-			float distanceRight = (float)count[1] * WheelMovement;
-
+			// 1 cm is (298*12)/(pi*d). this is 3576/OneRevDistance. So to get cm, divide counts by counts per centimeter
+			float distanceLeft = (float)count[0] / CountsPerCM;
+			float distanceRight = (float)count[1] / CountsPerCM;
+			
+			float elapsedSeconds = time_elapsed_ms / 1000.0f; // Convert milliseconds to seconds
+			float speedLeft = (delta1 / elapsedSeconds); // cm/s Speed=distance/time
+			float speedRight = (deltaRight / elapsedSeconds); // cm/s
 
 			YEEP144_DebugUART_printf("Encoder 1: %d\tEncoder 2: %d\r\n", enc1, enc2);
 			YEEP144_DebugUART_printf("Encoder 1 Counts: %lld\t Encoder 2 Counts: %lld\r\n", count[0], count[1]);
 			YEEP144_DebugUART_printf("Distance Left: %.2f cm\tDistance Right: %.2f cm\r\n", distanceLeft, distanceRight);
+			YEEP144_DebugUART_printf("Speed Left: %.2f cm/s\tSpeed Right: %.2f cm/s\r\n", speedLeft, speedRight); // Per interval speed
 
 		}
 }
