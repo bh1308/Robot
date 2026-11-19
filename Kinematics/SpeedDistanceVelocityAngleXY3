@@ -111,8 +111,8 @@ break;
 			YEEP144_DebugUART_printf("Incremental Distance: %.2f cm\r\n", IncrementalDistance);
 			
 			float thetaMid = theta + (IncrementalRotationAngle / 2.0f);
-			y = IncrementalDistance * cos(thetaMid);
-			x = IncrementalDistance * sin(thetaMid);			
+			x = IncrementalDistance * cos(thetaMid);
+			y = IncrementalDistance * sin(thetaMid);
 			theta += IncrementalRotationAngle;	// Update the robot's orientation angle in Radians
 			float thetaDegrees = theta * (180.0f / 3.14159f); // Convert theta from radians to degrees
 			YEEP144_DebugUART_printf("Change in X: %.2f cm\tChange in Y: %.2f cm\tAngle: %.2f deg\r\n", x, y, thetaDegrees);
