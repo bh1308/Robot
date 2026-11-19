@@ -54,7 +54,7 @@ if (thetaDegrees >= 90.0f) {
 			int32_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
 			float DeltaRightCM = (float)deltaRight / CountsPerCM; // Change in distance travelled by the right wheel in cm
 
-			float IncrementalRotationAngle = ((DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels/2); // Incremental rotation angle of the robot in radians
+			float IncrementalRotationAngle = ((DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels); // Incremental rotation angle of the robot in radians
 			float IncrementalDistance = ((DeltaRightCM + DeltaLeftCM) / 2.0f); // Incremental distance travelled by the robot in cm
 
 			x += IncrementalDistance * cosf(theta);
