@@ -1,0 +1,121 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+
+
+uint32_t time_start_ms = 0; //Get the initial start time
+float CountsPerCM = 3576.0f / (4.80f * 3.14159f); //Counts per cm of movement. 3576 counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+float DistanceBetweenWheels = 13.0f; //Distance between the wheels in cm
+float x = 0.0f;
+float y = 0.0f;
+float theta = 0.0f;
+
+int main(void){
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init(); 
+	YEEP144_Encoder1_Init(); // Left wheel encoder
+	YEEP144_Encoder2_Init(); // Right wheel encoder
+	time_start_ms = HAL_GetTick();
+	int16_t curr_countsLeft = 0;
+	int16_t prev_countsLeft = 0;
+	int16_t curr_countsRight = 0;
+	int16_t prev_countsRight = 0;
+	int64_t count[2] = {0};
+
+	uint8_t RxData[32] = {0};
+	uint16_t RxLen = 0;
+
+while(1) {
+		uint8_t err = HAL_UARTEx_ReceiveToIdle(&huart3, RxData, 32, &RxLen, 1);
+	(void)err; // Explicitly silences the unused variable warning
+	// 
+	//Your program loop code goes here
+		switch(RxData[0]) {
+	case ' ': //stop with space
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+break;
+	case 'w': //forward with 'w'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+break;
+	case 's': //backward with 's'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+break;
+	case 'a': //turn left with 'a'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+break;
+	case 'd': //turn right with 'd'
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1023);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+break;
+default:
+break;
+		}
+		
+		uint16_t enc1 = YEEP144_Encoder1_Get();
+		uint16_t enc2 = YEEP144_Encoder2_Get();
+		uint32_t time_current_ms = HAL_GetTick(); // Check the current time
+		uint32_t time_elapsed_ms = (time_current_ms - time_start_ms);
+		if(time_elapsed_ms > 1000) { // If more than one second has elapsed
+			time_start_ms = HAL_GetTick(); // Reset start time
+			
+			prev_countsLeft = curr_countsLeft;
+			curr_countsLeft = enc1;
+			int16_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
+			float DeltaLeftCM = (float)delta1 / CountsPerCM; // Change in distance travelled by the left wheel in cm
+			count[0] += (int64_t)delta1; // Left
+			
+
+			prev_countsRight = curr_countsRight;
+			curr_countsRight = enc2;
+			int16_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
+			int16_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
+			float DeltaRightCM = (float)deltaRight / CountsPerCM; // Change in distance travelled by the right wheel in cm
+			count[1] += (int64_t)deltaRight; // Right
+			
+			float elapsedSeconds = time_elapsed_ms / 1000.0f; // Convert milliseconds to seconds
+			float speedLeft = (DeltaLeftCM / elapsedSeconds); // cm/s Speed=distance/time
+			float speedRight = (DeltaRightCM / elapsedSeconds); // cm/s
+
+
+			float AngularVelocityRobot = (speedRight - speedLeft) / DistanceBetweenWheels; // Angular velocity of the robot in rad/s. 13cm is the distance between the wheels
+			float linearVelocityRobot = (speedRight + speedLeft) / 2.0f; // Linear velocity of the robot in cm/s
+			YEEP144_DebugUART_printf("Linear Velocity: %.2f cm/s\r\n", linearVelocityRobot);
+			YEEP144_DebugUART_printf("Angular Velocity: %.2f rad/s\r\n", AngularVelocityRobot);
+			if (fabsf(AngularVelocityRobot) > 0.001f) {
+			float TurningRadius = linearVelocityRobot / AngularVelocityRobot; // Turning radius of the robot arounf the Instantaneous Centre of Curvature in cm
+						YEEP144_DebugUART_printf("Turning Radius: %.2f cm\r\n", TurningRadius);
+			}
+			else {
+    			YEEP144_DebugUART_printf("Robot is moving straight");
+			}
+
+			float IncrementalRotationAngle = (DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels; // Incremental rotation angle of the robot in radians
+			float IncrementalRotationAngleDegrees = IncrementalRotationAngle * (180.0f / 3.14159f); // Incremental rotation angle of the robot in degrees
+			float IncrementalDistance = (DeltaRightCM + DeltaLeftCM) / 2.0f; // Incremental distance travelled by the robot in cm
+			YEEP144_DebugUART_printf("Incremental Rotation Angle (Degrees): %.2f deg\r\n", IncrementalRotationAngleDegrees);
+			YEEP144_DebugUART_printf("Incremental Distance: %.2f cm\r\n", IncrementalDistance);
+			
+			float thetaMid = theta + (IncrementalRotationAngle / 2.0f);
+			y = IncrementalDistance * cos(thetaMid);
+			x = IncrementalDistance * sin(thetaMid);			
+			theta += IncrementalRotationAngle;	// Update the robot's orientation angle in Radians
+			float thetaDegrees = theta * (180.0f / 3.14159f); // Convert theta from radians to degrees
+			YEEP144_DebugUART_printf("Change in X: %.2f cm\tChange in Y: %.2f cm\tAngle: %.2f deg\r\n", x, y, thetaDegrees);
+		}
+}
+}
