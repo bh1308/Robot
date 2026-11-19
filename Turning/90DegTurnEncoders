@@ -4,7 +4,7 @@
 
 
 uint32_t time_start_ms = 0; //Get the initial start time
-float CountsPerCM = 3576.0f / (4.80f * 3.14159f); //Counts per cm of movement. 3576 counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+float CountsPerCM = (298*6) / (4.80f * 3.14159f); //Counts per cm of movement. (298*6) counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
 float DistanceBetweenWheels = 13.0f; //Distance between the wheels in cm
 float x = 0.0f;
 float y = 0.0f;
