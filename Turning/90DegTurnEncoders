@@ -25,17 +25,22 @@ int main(void){
 
 while(1) {
 	//Your program loop code goes here
-if (thetaDegrees >= 90.0f) {
+if (fabsf(thetaDegrees) >= 90.0f) {
 		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
 		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
 		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
 	}
 		else {
-		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
-		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
-		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
-		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+		//YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
+		//YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+	//	YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		//YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1023);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
 	}
 
 		uint32_t enc1 = YEEP144_Encoder1_Get();
