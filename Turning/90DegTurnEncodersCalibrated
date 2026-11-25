@@ -4,7 +4,8 @@
 
 
 uint32_t time_start_ms = 0; //Get the initial start time
-float CountsPerCM = (298*6) / (4.80f * 3.14159f); //Counts per cm of movement. (298*6) counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+float CountsPerCMRight = (298*6) / (4.80f * 3.14159f); //Counts per cm of movement. (298*6) counts per revolution (in reality 1740), divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+float CountsPerCMLeft = (298*6) / (4.80f * 3.14159f); //Counts per cm of movement. (298*6) counts per revolution (in reality 1730), divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
 float DistanceBetweenWheels = 13.0f; //Distance between the wheels in cm
 float x = 0.0f;
 float y = 0.0f;
@@ -26,7 +27,7 @@ int main(void){
 
 while(1) {
 	//Your program loop code goes here
-if (fabsf(thetaDegrees) >= 88.0f) { // If the robot has rotated 90 degrees or more, stop the motors. 88 gives the robot time to stop
+if (fabsf(IncrementalDistance) >= 15.07f) { // If the robot has moved 15.07 cm or more, stop the motors.
 		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
 		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
@@ -38,10 +39,10 @@ if (fabsf(thetaDegrees) >= 88.0f) { // If the robot has rotated 90 degrees or mo
 	//	YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
 		//YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
 
-		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
-		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1023);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 500);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 500);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
-		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
 	}
 
 		uint32_t enc1 = YEEP144_Encoder1_Get();
@@ -52,14 +53,14 @@ if (fabsf(thetaDegrees) >= 88.0f) { // If the robot has rotated 90 degrees or mo
 			prev_countsLeft = curr_countsLeft;
 			curr_countsLeft = enc1;
 			int32_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
-			float DeltaLeftCM = (float)delta1 / CountsPerCM; // Change in distance travelled by the left wheel in cm
+			float DeltaLeftCM = (float)delta1 / CountsPerCMLeft; // Change in distance travelled by the left wheel in cm
 			count[0] += (int64_t)delta1; // Left Encoder Counts
 
 			prev_countsRight = curr_countsRight;
 			curr_countsRight = enc2;
 			int32_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
 			int32_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
-			float DeltaRightCM = (float)deltaRight / CountsPerCM; // Change in distance travelled by the right wheel in cm
+			float DeltaRightCM = (float)deltaRight / CountsPerCMRight; // Change in distance travelled by the right wheel in cm
 			count[1] += (int64_t)deltaRight; // Right Encoder Counts
 
 			float IncrementalRotationAngle = ((DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels); // Incremental rotation angle of the robot in radians
