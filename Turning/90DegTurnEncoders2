@@ -37,10 +37,9 @@ if (fabsf(thetaDegrees) >= 90.0f) {
 		//YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
 
 		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
-		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 960);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, (1023*0.935f)); // Right motor has been found to rotate 6.5% faster than left motor when both speed set to 1023. Therefore when PWM_LEFT = 1023.0f, PWM_RIGHT = 960.0f.
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
 		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
-        // Right motor has been found to rotate 6.5% faster than left motor when both speed set to 1023. Therefore when PWM_LEFT = 1023.0f, PWM_RIGHT = 960.0f.
 	}
 
 		uint32_t enc1 = YEEP144_Encoder1_Get();
