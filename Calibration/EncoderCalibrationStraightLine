@@ -1,0 +1,179 @@
+// Right motor has been found to rotate 6.5% faster than left motor when both speed set to 1023. Therefore when PWM_LEFT = 1023.0f, PWM_RIGHT = 960.0f.
+
+
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+
+
+// Encoder calibration
+float COUNTS_PER_REV_LEFT = 298*6.0f;
+float COUNTS_PER_REV_RIGHT = 298*6.0f;
+// Wheel dimensions
+float WHEEL_CIRCUMFERENCE = (4.8f * 3.14159f); // 48mm wheel diameter
+float DistanceBetweenWheels = 13.5f;
+
+// Motor speed controller settings
+float TARGET_RPM = 10.0f;
+float BASE_PWM_LEFT = 1023.0f;
+float BASE_PWM_RIGHT = 960.0f;
+float KP = 8.0f;
+float CONTROL_INTERVAL_MS = 100;
+
+uint32_t time_start_ms = 0;
+float CountsPerCMRight = (298*6.0f)/(4.8f * 3.14159f); // COUNTS_PER_REV_RIGHT / WHEEL_CIRCUMFERENCE
+float CountsPerCMLeft = (298*6.0f)/(4.8f * 3.14159f); // COUNTS_PER_REV_LEFT / WHEEL_CIRCUMFERENCE
+
+float x = 0.0f;
+float y = 0.0f;
+float theta = 0.0f;
+float thetaDegrees = 0.0f;
+
+// Motor speed controller variables
+float LeftRPM = 0.0f;
+float RightRPM = 0.0f;
+
+float LeftPWM = 1023.0f;
+float RightPWM = 1023.0f;
+
+uint8_t motorsStopped = 0;
+
+int main(void)
+{
+    YEEP144_Init();
+    YEEP144_DebugUART_Init();
+    YEEP144_DCMotor_Init();
+
+    YEEP144_Encoder1_Init(); // Left wheel encoder
+    YEEP144_Encoder2_Init(); // Right wheel encoder
+
+    time_start_ms = HAL_GetTick();
+
+    // Encoder readings
+    uint16_t curr_countsLeft =(uint16_t)YEEP144_Encoder1_Get();
+    uint16_t prev_countsLeft = curr_countsLeft;
+
+    uint16_t curr_countsRight = (uint16_t)YEEP144_Encoder2_Get();
+    uint16_t prev_countsRight = curr_countsRight;
+
+    int64_t count[2] = {0};
+
+    // Accumulated wheel distances
+    float TotalDistanceLeft = 0.0f;
+    float TotalDistanceRight = 0.0f;
+
+    // Control timing
+    uint32_t previousControlTime = HAL_GetTick();
+
+    // Set motor directions
+    YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+    YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+
+    // Initial motor speeds
+    YEEP144_DCMotor_SetSpeed(DCMOTOR1, (uint16_t)BASE_PWM_LEFT);
+    YEEP144_DCMotor_SetSpeed(DCMOTOR2, (uint16_t)BASE_PWM_RIGHT);
+
+    while (1)
+    {
+        // Read encoder values
+        uint32_t enc1 = YEEP144_Encoder1_Get();
+        uint32_t enc2 = YEEP144_Encoder2_Get();
+
+        prev_countsLeft = curr_countsLeft;
+        curr_countsLeft = enc1;
+        int32_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
+        float DeltaLeftCM = (float)delta1 / CountsPerCMLeft; // Change in distance travelled by the left wheel in cm
+        count[0] += (int64_t)delta1; // Left Encoder Counts
+
+        prev_countsRight = curr_countsRight;
+        curr_countsRight = enc2;
+        int32_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
+        int32_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
+        float DeltaRightCM = (float)deltaRight / CountsPerCMRight; // Change in distance travelled by the right wheel in cm
+        count[1] += (int64_t)deltaRight; // Right Encoder Counts
+
+        // Accumulate total wheel distances
+        TotalDistanceLeft += fabsf(DeltaLeftCM);
+        TotalDistanceRight += fabsf(DeltaRightCM);
+
+        uint32_t currentTime = HAL_GetTick();
+
+        if ((currentTime - previousControlTime)
+            >= CONTROL_INTERVAL_MS && !motorsStopped)
+        {
+            // Actual elapsed time in seconds
+            float dt =
+                (currentTime - previousControlTime) / 1000.0f;
+
+            previousControlTime = currentTime;
+
+            // Calculate actual wheel speeds in RPM
+            LeftRPM =
+                (fabsf((float)delta1) / COUNTS_PER_REV_LEFT)
+                * (60.0f / dt);
+
+            RightRPM =
+                (fabsf((float)deltaRight) / COUNTS_PER_REV_RIGHT)
+                * (60.0f / dt);
+
+            // Calculate speed errors
+            float LeftError = TARGET_RPM - LeftRPM;
+            float RightError = TARGET_RPM - RightRPM;
+
+            // Proportional PWM correction
+            LeftPWM = BASE_PWM_LEFT + KP * LeftError;
+            RightPWM = BASE_PWM_RIGHT + KP * RightError;
+
+            // Limit PWM values
+            if (LeftPWM > 2047.0f)
+                LeftPWM = 2047.0f;
+
+            if (LeftPWM < 0.0f)
+                LeftPWM = 0.0f;
+
+            if (RightPWM > 2047.0f)
+                RightPWM = 2047.0f;
+
+            if (RightPWM < 0.0f)
+                RightPWM = 0.0f;
+
+            // Apply corrected motor speeds
+            YEEP144_DCMotor_SetSpeed(
+                DCMOTOR1, (uint16_t)LeftPWM);
+
+            YEEP144_DCMotor_SetSpeed(
+                DCMOTOR2, (uint16_t)RightPWM);
+        }
+
+        if (TotalDistanceRight >= 15.07f && !motorsStopped)
+        {
+            YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+            YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+            YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+            YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+
+            motorsStopped = 1;
+        }
+
+if ((currentTime - time_start_ms) >= 1000)
+        {
+            time_start_ms = currentTime;
+
+            YEEP144_DebugUART_printf(
+                "Left RPM: %.2f | Right RPM: %.2f\r\n",
+                LeftRPM, RightRPM);
+
+            YEEP144_DebugUART_printf(
+                "Left PWM: %.0f | Right PWM: %.0f\r\n",
+                LeftPWM, RightPWM);
+
+            YEEP144_DebugUART_printf(
+                "Left Distance: %.2f cm | Right Distance: %.2f cm\r\n",
+                TotalDistanceLeft, TotalDistanceRight);
+
+            YEEP144_DebugUART_printf(
+                "Encoder 1: %lld | Encoder 2: %lld\r\n",
+                count[0], count[1]);
+        }
+    }
+}
