@@ -1,0 +1,186 @@
+#include "YEEP144.h"
+#include "YEEP144_DebugUART.h"
+#include "YEEP144_DCMotor.h"
+#include "YEEP144_HCSR04.h"
+#include "YEEP144_PushButton.h"
+#include "YEEP144_I2C.h"
+#include "YEEP144_GP2Y0E02B.h"
+#include <stdbool.h>
+#include <math.h>
+
+bool greenPressed = false;
+void YEEP144_PushButton_GreenCallback(void){
+    greenPressed = true;
+}
+
+uint32_t time_start_ms = 0; //Get the initial start time
+float CountsPerCM = (298*6) / (4.80f * 3.14159f); //Counts per cm of movement. (298*6) counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
+float DistanceBetweenWheels = 14.5f; //Distance between the wheels in cm
+float theta = 0.0f;
+float thetaDegrees = 0.0f;
+float turnStartThetaDegrees = 0.0f;
+float turnAngleDegrees = 0.0f;
+float USdistance_cm = 0.0f;
+bool obstacleArmed = true;
+bool openingArmed = true;
+
+enum RobotState {
+ STATE_STOP = 0,
+ STATE_FORWARD,
+ STATE_BACKWARD,
+ STATE_LEFT,
+ STATE_RIGHT
+} currentState;
+
+
+enum RobotState behaviour_forward() {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+		obstacleArmed = true;
+    return STATE_FORWARD;
+}
+
+enum RobotState behaviour_stop() {
+    // Stop all motors
+    YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+    YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+    YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+    YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+
+	if(greenPressed) {
+        greenPressed = false;
+        return STATE_FORWARD;
+    }
+    // Otherwise, stay stopped
+    return STATE_STOP;
+}
+
+enum RobotState behaviour_right() {
+	if (fabsf(turnAngleDegrees) >= 90.0f) {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+	return STATE_FORWARD;
+	}
+		else {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, (2047)); 
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
+	return STATE_RIGHT;
+
+	}
+}
+enum RobotState behaviour_left() {
+	if (fabsf(turnAngleDegrees) >= 90.0f) {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+	return STATE_FORWARD;
+
+	}
+		else {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 1023);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+        return STATE_LEFT;
+	}
+}
+
+int main(void){
+	YEEP144_DebugUART_printf("Press the green button to start the motors\r\n");
+	YEEP144_Init();
+	YEEP144_DebugUART_Init();
+	YEEP144_DCMotor_Init(); 
+	YEEP144_Ultrasonic1_Init();  
+	YEEP144_Encoder1_Init(); // Left wheel encoder
+	YEEP144_Encoder2_Init(); // Right wheel encoder
+	YEEP144_PushButton_GreenInit();
+	YEEP144_I2C_Init();
+
+	time_start_ms = HAL_GetTick();
+	int16_t curr_countsLeft = 0;
+	int16_t prev_countsLeft = 0;
+	int16_t curr_countsRight = 0;
+	int16_t prev_countsRight = 0;
+
+while(1) {
+	//Your program loop code goes here
+	uint32_t enc1 = YEEP144_Encoder1_Get();
+	uint32_t enc2 = YEEP144_Encoder2_Get();
+	uint32_t time_current_ms = HAL_GetTick(); // Check the current time
+	uint32_t time_elapsed_ms = (time_current_ms - time_start_ms);
+			
+	YEEP144_Ultrasonic1_Ping();
+	USdistance_cm = ultrasonicTickLen[0] / 58.0f;
+	HAL_Delay(50);
+
+    //YEEP144_I2C_MuxSelect(0);	// Read Right IR sensor
+    //float IRRight = YEEP144_GP2Y0E02B_Read();
+    YEEP144_I2C_MuxSelect(1); // Read Left IR sensor
+    float IRLeft = YEEP144_GP2Y0E02B_Read();
+
+	prev_countsLeft = curr_countsLeft;
+	curr_countsLeft = enc1;
+	int32_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
+	float DeltaLeftCM = (float)delta1 / CountsPerCM; // Change in distance travelled by the left wheel in cm
+
+	prev_countsRight = curr_countsRight;
+	curr_countsRight = enc2;
+	int32_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
+	int32_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
+	float DeltaRightCM = (float)deltaRight / CountsPerCM; // Change in distance travelled by the right wheel in cm
+
+	float IncrementalRotationAngle = ((DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels); // Incremental rotation angle of the robot in radians
+	theta += IncrementalRotationAngle;	// Update the robot's orientation angle in Radians
+	thetaDegrees = theta * (180.0f / 3.14159f); // Convert theta from radians to degrees
+	turnAngleDegrees = thetaDegrees - turnStartThetaDegrees;
+
+	if (currentState == STATE_FORWARD && USdistance_cm > 0 && USdistance_cm <= 8 && obstacleArmed) {         // stop the motors
+		YEEP144_DebugUART_printf("Obstacle detected! Stopping motors");
+		turnStartThetaDegrees = thetaDegrees;
+    	obstacleArmed = false;
+		currentState = STATE_RIGHT;
+	}
+	if (currentState == STATE_FORWARD && USdistance_cm > 6) {	// Re-arm obstacle detection only once the obstacle is clear
+    	obstacleArmed = true;
+	}
+
+	if (currentState == STATE_FORWARD && IRLeft >= 10) {
+		turnStartThetaDegrees = thetaDegrees;
+		openingArmed = false;
+		currentState = STATE_LEFT;
+	}
+	if (currentState == STATE_FORWARD && IRLeft < 10) {	// Re-arm obstacle detection only once the obstacle is clear
+    	obstacleArmed = true;
+	}
+
+	switch (currentState) {
+    case STATE_STOP:
+        currentState = behaviour_stop();
+    break;
+    case STATE_FORWARD:
+        currentState = behaviour_forward();
+    break;
+	case STATE_RIGHT:
+        currentState = behaviour_right();
+    break;
+	case STATE_LEFT:
+        currentState = behaviour_left();
+    break;
+	default:
+		currentState = behaviour_stop();
+	}
+		
+	if(time_elapsed_ms > 1000) { // If more than one second has elapsed
+	time_start_ms = HAL_GetTick(); // Reset start time
+	YEEP144_DebugUART_printf("Angle: %.2f deg\r\n", thetaDegrees);
+	YEEP144_DebugUART_printf("%f\r\n", USdistance_cm);
+	}
+}
+}
