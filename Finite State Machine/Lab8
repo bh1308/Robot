@@ -4,6 +4,7 @@
 #include "YEEP144_HCSR04.h"
 #include "YEEP144_PushButton.h"
 #include <stdbool.h>
+#include <math.h>
 
 bool greenPressed = false;
 void YEEP144_PushButton_GreenCallback(void){
@@ -36,6 +37,7 @@ enum RobotState behaviour_forward() {
 		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
 		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+		obstacleArmed = true;
     return STATE_FORWARD;
 }
 
@@ -139,6 +141,10 @@ while(1) {
     	obstacleArmed = false;
 		currentState = STATE_RIGHT;
 	}
+	// Re-arm obstacle detection only once the obstacle is clear
+	if (currentState == STATE_FORWARD && USdistance_cm > 6) {
+    	obstacleArmed = true;
+	}
 
 	switch (currentState) {
     case STATE_STOP:
@@ -155,13 +161,12 @@ while(1) {
     break;
 	default:
 		currentState = behaviour_stop();
-		
+	}
 		
 	if(time_elapsed_ms > 1000) { // If more than one second has elapsed
 	time_start_ms = HAL_GetTick(); // Reset start time
 	YEEP144_DebugUART_printf("Angle: %.2f deg\r\n", thetaDegrees);
 	YEEP144_DebugUART_printf("%f\r\n", USdistance_cm);
 	}
-}
 }
 }
