@@ -2,6 +2,7 @@
 #include "YEEP144_DebugUART.h"
 #include "YEEP144_DCMotor.h"
 #include "YEEP144_HCSR04.h"
+#include <stdbool.h>
 
 
 uint32_t time_start_ms = 0; //Get the initial start time
@@ -10,6 +11,8 @@ float DistanceBetweenWheels = 14.5f; //Distance between the wheels in cm
 float theta = 0.0f;
 float thetaDegrees = 0.0f;
 float USdistance_cm = 0.0f;
+bool turning = false;
+bool obstacleArmed = true;
 
 // void USStop(){
 // 	if (USdistance_cm > 0 && USdistance_cm <= 6) {         // stop the motors
@@ -73,7 +76,7 @@ while(1) {
 		uint32_t time_elapsed_ms = (time_current_ms - time_start_ms);
 			
 		YEEP144_Ultrasonic1_Ping();
-		float USdistance_cm = ultrasonicTickLen[0] / 58.0f;
+		USdistance_cm = ultrasonicTickLen[0] / 58.0f;
 		HAL_Delay(50);
 		YEEP144_DebugUART_printf("%f\r\n", USdistance_cm);
 
@@ -97,14 +100,30 @@ while(1) {
 				YEEP144_DebugUART_printf("Angle: %.2f deg\r\n", thetaDegrees);
 			}
 
-		if (USdistance_cm > 0 && USdistance_cm <= 6) {         // stop the motors
+	if (USdistance_cm > 0 && USdistance_cm <= 8) {         // stop the motors
 		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
 		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
 		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
 		YEEP144_DebugUART_printf("Obstacle detected! Stopping motors");
-		TurnRight();
-		HAL_Delay(500);
+		theta = 0.0f;
+    	thetaDegrees = 0.0f;
+    	turning = true;
+    	obstacleArmed = false;
 	}
+	if (turning) {
+
+    TurnRight();
+
+    if (fabsf(thetaDegrees) >= 90.0f) {
+
+        turning = false;
+
+        YEEP144_DebugUART_printf("90 degree turn complete!\r\n");
+    }
+}
+	if (!turning && USdistance_cm > 6) {
+    obstacleArmed = true;
+}
 }
 }
