@@ -1,30 +1,43 @@
 #include "YEEP144.h"
 #include "YEEP144_DebugUART.h"
 #include "YEEP144_DCMotor.h"
+#include "YEEP144_HCSR04.h"
+#include "YEEP144_PushButton.h"
+#include <stdbool.h>
+
+volatile uint8_t startButton = 0;
+void YEEP144_PushButton_GreenCallback(void)
+{
+    startButton = 1;
+}
 
 uint32_t time_start_ms = 0; //Get the initial start time
 float CountsPerCM = (298*6) / (4.80f * 3.14159f); //Counts per cm of movement. (298*6) counts per revolution, divided by distance travelled in one revolution. Distance travelled in one revolution of the wheel 48mm*Pi
 float DistanceBetweenWheels = 14.5f; //Distance between the wheels in cm
 float theta = 0.0f;
 float thetaDegrees = 0.0f;
-
+float turnStartThetaDegrees = 0.0f;
+float turnAngleDegrees = 0.0f;
+float USdistance_cm = 0.0f;
+bool turning = false;
+bool obstacleArmed = true;
 
 void TurnRight() {
-	if (fabsf(thetaDegrees) >= 90.0f) {
+	if (fabsf(turnAngleDegrees) >= 90.0f) {
 		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
 		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
 		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
 	}
 		else {
-		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 1023);
-		YEEP144_DCMotor_SetSpeed(DCMOTOR2, (1023)); // Right motor has been found to rotate 6.5% faster than left motor when both speed set to 1023. Therefore when PWM_LEFT = 1023.0f, PWM_RIGHT = 960.0f.
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, (2047)); 
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
 		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CCW);
 	}
 }
 void TurnLeft() {
-	if (fabsf(thetaDegrees) >= 90.0f) {
+	if (fabsf(turnAngleDegrees) >= 90.0f) {
 		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
 		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
 		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
@@ -42,6 +55,7 @@ int main(void){
 	YEEP144_Init();
 	YEEP144_DebugUART_Init();
 	YEEP144_DCMotor_Init(); 
+	YEEP144_Ultrasonic1_Init();  
 	YEEP144_Encoder1_Init(); // Left wheel encoder
 	YEEP144_Encoder2_Init(); // Right wheel encoder
 	time_start_ms = HAL_GetTick();
@@ -49,34 +63,79 @@ int main(void){
 	int16_t prev_countsLeft = 0;
 	int16_t curr_countsRight = 0;
 	int16_t prev_countsRight = 0;
+	
+	YEEP144_PushButton_GreenInit();
+	YEEP144_DebugUART_printf("Press the green button to start the motors\r\n");
 
 while(1) {
 	//Your program loop code goes here
+if (startButton == 0)
+    {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+        YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		continue;
+	}
+
+	else if (startButton == 1){
 		uint32_t enc1 = YEEP144_Encoder1_Get();
 		uint32_t enc2 = YEEP144_Encoder2_Get();
 		uint32_t time_current_ms = HAL_GetTick(); // Check the current time
 		uint32_t time_elapsed_ms = (time_current_ms - time_start_ms);
 			
-			prev_countsLeft = curr_countsLeft;
-			curr_countsLeft = enc1;
-			int32_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
-			float DeltaLeftCM = (float)delta1 / CountsPerCM; // Change in distance travelled by the left wheel in cm
+		YEEP144_Ultrasonic1_Ping();
+		USdistance_cm = ultrasonicTickLen[0] / 58.0f;
+		HAL_Delay(50);
 
-			prev_countsRight = curr_countsRight;
-			curr_countsRight = enc2;
-			int32_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
-			int32_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
-			float DeltaRightCM = (float)deltaRight / CountsPerCM; // Change in distance travelled by the right wheel in cm
+		prev_countsLeft = curr_countsLeft;
+		curr_countsLeft = enc1;
+		int32_t delta1 = (int16_t)(curr_countsLeft - prev_countsLeft);
+		float DeltaLeftCM = (float)delta1 / CountsPerCM; // Change in distance travelled by the left wheel in cm
 
-			float IncrementalRotationAngle = ((DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels); // Incremental rotation angle of the robot in radians
+		prev_countsRight = curr_countsRight;
+		curr_countsRight = enc2;
+		int32_t delta2 = (int16_t)(curr_countsRight - prev_countsRight);
+		int32_t deltaRight = -delta2; // Negative as the right encoder counts in the opposite direction to the left encoder counts
+		float DeltaRightCM = (float)deltaRight / CountsPerCM; // Change in distance travelled by the right wheel in cm
 
-			theta += IncrementalRotationAngle;	// Update the robot's orientation angle in Radians
-			thetaDegrees = theta * (180.0f / 3.14159f); // Convert theta from radians to degrees
-			if(time_elapsed_ms > 1000) { // If more than one second has elapsed
-				time_start_ms = HAL_GetTick(); // Reset start time
-				YEEP144_DebugUART_printf("Angle: %.2f deg\r\n", thetaDegrees);
-			}
-			
-			TurnLeft(); // Call the function to turn right 90 degrees
+		float IncrementalRotationAngle = ((DeltaRightCM - DeltaLeftCM) / DistanceBetweenWheels); // Incremental rotation angle of the robot in radians
+		theta += IncrementalRotationAngle;	// Update the robot's orientation angle in Radians
+		thetaDegrees = theta * (180.0f / 3.14159f); // Convert theta from radians to degrees
+		turnAngleDegrees = thetaDegrees - turnStartThetaDegrees;
+
+		if(time_elapsed_ms > 1000) { // If more than one second has elapsed
+			time_start_ms = HAL_GetTick(); // Reset start time
+			YEEP144_DebugUART_printf("Angle: %.2f deg\r\n", thetaDegrees);
+			YEEP144_DebugUART_printf("%f\r\n", USdistance_cm);
+
+		}
+
+	if (USdistance_cm > 0 && USdistance_cm <= 8 && obstacleArmed && !turning) {         // stop the motors
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 0);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 0);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_STOP);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_STOP);
+		YEEP144_DebugUART_printf("Obstacle detected! Stopping motors");
+		turnStartThetaDegrees = thetaDegrees;
+    	turning = true;
+    	obstacleArmed = false;
+	}
+	else {
+		YEEP144_DCMotor_SetSpeed(DCMOTOR1, 2047);
+		YEEP144_DCMotor_SetSpeed(DCMOTOR2, 2047);
+		YEEP144_DCMotor_SetDirection(DCMOTOR1, DCMOTOR_CCW);
+		YEEP144_DCMotor_SetDirection(DCMOTOR2, DCMOTOR_CW);
+	}
+	
+	if (turning) {
+    TurnRight();
+		if (fabsf(turnAngleDegrees) >= 90.0f) {
+        turning = false;
+        YEEP144_DebugUART_printf("90 degree turn complete!\r\n");
+    	}
+	}
+	if (!turning && USdistance_cm > 6) {
+    obstacleArmed = true;
+	}
+}
 }
 }
